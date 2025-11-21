@@ -161,13 +161,11 @@ export class BnovoService {
 
     return {
       id: String(raw.id ?? raw.booking_id ?? ''),
-      externalId: raw.external_id,
       createdAt: raw.created_at || raw.createdAt || '',
       arrivalDate: raw.arrival_date || raw.arrivalDate || '',
       departureDate: raw.departure_date || raw.departureDate || '',
       guestName: raw.guest_name || guest.name || '',
       phone: raw.phone || guest.phone,
-      email: raw.email || guest.email,
       roomId: String(raw.room_id ?? room.id ?? ''),
       roomTitle: raw.room_title || room.title || 'Номер',
       adults: Number(raw.adults ?? 0),

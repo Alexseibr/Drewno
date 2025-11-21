@@ -8,13 +8,11 @@ export interface BnovoServiceItem {
 
 export interface BnovoBooking {
   id: string;
-  externalId?: string;
   createdAt: string;
   arrivalDate: string;
   departureDate: string;
   guestName: string;
   phone?: string;
-  email?: string;
   roomId: string;
   roomTitle: string;
   adults: number;
