@@ -1,0 +1,275 @@
+:root {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #1f2937;
+  background-color: #f7f7f8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f7f7f8;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.page {
+  flex: 1;
+  display: flex;
+  padding: 24px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.sidebar {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sidebar-list {
+  flex: 1;
+  overflow: auto;
+}
+
+.conversation-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f2f5;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.conversation-item:hover {
+  background-color: #f6f9ff;
+}
+
+.conversation-item.active {
+  background: linear-gradient(90deg, #eef2ff, #f8fafc);
+  border-left: 3px solid #6366f1;
+}
+
+.conversation-meta {
+  font-size: 12px;
+  color: #6b7280;
+  display: flex;
+  gap: 8px;
+}
+
+.conversation-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.conversation-snippet {
+  color: #4b5563;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.main-panel {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  margin-left: 16px;
+}
+
+.messages-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 520px;
+}
+
+.messages-list {
+  flex: 1;
+  padding: 16px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.message-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.message-bubble {
+  padding: 12px 14px;
+  border-radius: 12px;
+  max-width: 70%;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.message-in {
+  align-self: flex-start;
+}
+
+.message-in .message-bubble {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.message-out {
+  align-self: flex-end;
+}
+
+.message-out .message-bubble {
+  background: #4f46e5;
+  color: #f9fafb;
+  border: 1px solid #4338ca;
+}
+
+.message-time {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 6px;
+}
+
+.message-author {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.input-area {
+  padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.input-row textarea {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.button-primary {
+  background: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 120px;
+}
+
+.button-primary:hover {
+  background: #4338ca;
+}
+
+.quick-replies {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.quick-reply {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.quick-reply:hover {
+  border-color: #c7d2fe;
+  color: #4338ca;
+}
+
+.guest-panel {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 520px;
+}
+
+.guest-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+}
+
+.divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 8px 0;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #eef2ff;
+  color: #4338ca;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.booking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.booking-item {
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.booking-title {
+  font-weight: 600;
+}
+
+.placeholder {
+  color: #9ca3af;
+  font-size: 14px;
+}

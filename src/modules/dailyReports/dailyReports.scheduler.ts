@@ -1,12 +1,7 @@
 import cron from 'node-cron';
-import { DailyReportsService } from './dailyReports.service';
+import { dailyReportsService } from './dailyReports.service';
 
-// TODO: Replace imports with actual implementations from your project.
-// import { bnovoService } from '../bnovo/bnovo.service';
-// import { telegramService } from '../telegram/telegram.service';
-// const dailyReportsService = new DailyReportsService(bnovoService, telegramService);
-
-export function initDailyReportsScheduler(dailyReportsService: DailyReportsService): void {
+export function initDailyReportsScheduler(): void {
   const timezone = process.env.TZ || 'Europe/Minsk';
   const adminCron = normalizeCron(process.env.DAILY_REPORT_CRON_ADMIN);
   const checkinsCron = normalizeCron(process.env.DAILY_REPORT_CRON_CHECKINS);

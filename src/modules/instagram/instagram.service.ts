@@ -2,41 +2,12 @@ import axios, { AxiosInstance } from 'axios';
 import { instagramConfig } from './instagram.config';
 import { mapWebhookToIncomingMessages } from './instagram.mapper';
 import { InstagramIncomingMessage, InstagramWebhookPayload } from './instagram.types';
-
-export interface Contact {
-  id: string;
-  instagramId?: string;
-  // Extend with other contact fields as needed.
-}
-
-export interface MessagingHubService {
-  findOrCreateContactByInstagramId: (instagramId: string) => Promise<Contact>;
-  appendMessageToConversation: (options: {
-    contactId: string;
-    channel: 'instagram';
-    direction: 'in' | 'out';
-    externalId?: string;
-    text?: string;
-    attachments?: unknown[];
-    timestamp: Date;
-  }) => Promise<void>;
-}
-
-// TODO: Replace this stub with an actual implementation from the messaging hub.
-export const messagingHubService: MessagingHubService = {
-  async findOrCreateContactByInstagramId(instagramId: string): Promise<Contact> {
-    console.warn('[InstagramService] messagingHubService.findOrCreateContactByInstagramId is not implemented.');
-    return { id: instagramId, instagramId };
-  },
-  async appendMessageToConversation(): Promise<void> {
-    console.warn('[InstagramService] messagingHubService.appendMessageToConversation is not implemented.');
-  },
-};
+import { messagingHubService } from '../messaging';
 
 export class InstagramService {
   private readonly httpClient: AxiosInstance;
 
-  constructor(private readonly hubService: MessagingHubService = messagingHubService) {
+  constructor() {
     this.httpClient = axios.create({
       baseURL: 'https://graph.facebook.com/v19.0',
       timeout: 10000,
@@ -56,6 +27,7 @@ export class InstagramService {
   }
 
   async sendMessageToUser(instagramUserId: string, text: string): Promise<void> {
+    // TODO: confirm the exact endpoint/body for Instagram messaging; adjust if Graph API version changes.
     const url = `/me/messages`;
 
     try {
@@ -64,10 +36,8 @@ export class InstagramService {
         {
           recipient: { id: instagramUserId },
           message: { text },
-          access_token: instagramConfig.pageAccessToken,
         },
         {
-          // TODO: confirm whether token should be passed via params or body for the selected endpoint.
           params: { access_token: instagramConfig.pageAccessToken },
         },
       );
@@ -77,21 +47,21 @@ export class InstagramService {
   }
 
   private async processIncomingMessage(message: InstagramIncomingMessage): Promise<void> {
-    const contact = await this.hubService.findOrCreateContactByInstagramId(message.senderId);
+    const contact = await messagingHubService.findOrCreateContactByInstagramId(message.senderId);
+    const conversation = await messagingHubService.getOrCreateConversation(contact.id, 'instagram');
 
-    await this.hubService.appendMessageToConversation({
+    await messagingHubService.appendMessage({
       contactId: contact.id,
+      conversationId: conversation.id,
       channel: 'instagram',
       direction: 'in',
-      externalId: message.raw && typeof message.raw === 'object' && 'message' in (message.raw as Record<string, unknown>)
+      externalId: typeof message.raw === 'object' && message.raw && 'message' in (message.raw as Record<string, unknown>)
         ? (message.raw as { message?: { mid?: string } }).message?.mid
         : undefined,
       text: message.text,
       attachments: message.attachments,
       timestamp: new Date(message.timestamp),
     });
-
-    // TODO: trigger optional autoresponder/bot workflow if required.
   }
 }
 
