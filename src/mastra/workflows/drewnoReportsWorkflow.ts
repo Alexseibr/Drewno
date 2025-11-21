@@ -22,13 +22,13 @@ const generateMorningTasksReport = createStep({
     logger?.info("🚀 [Step 1] Начало генерации утреннего отчёта");
 
     const timezone = process.env.TZ || "Europe/Minsk";
-    const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+    const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID_NEW;
 
     if (!adminChatId) {
-      logger?.warn("⚠️ [Step 1] TELEGRAM_ADMIN_CHAT_ID не настроен");
+      logger?.warn("⚠️ [Step 1] TELEGRAM_ADMIN_CHAT_ID_NEW не настроен");
       return {
         success: false,
-        message: "TELEGRAM_ADMIN_CHAT_ID не настроен",
+        message: "TELEGRAM_ADMIN_CHAT_ID_NEW не настроен",
       };
     }
 
@@ -124,14 +124,14 @@ const generateTodayCheckinsReport = createStep({
     logger?.info("🚀 [Step 2] Начало генерации отчёта по заездам");
 
     const timezone = process.env.TZ || "Europe/Minsk";
-    const checkinsChatId = process.env.TELEGRAM_CHECKINS_CHAT_ID;
+    const checkinsChatId = process.env.TELEGRAM_CHECKINS_CHAT_ID_NEW;
 
     if (!checkinsChatId) {
-      logger?.warn("⚠️ [Step 2] TELEGRAM_CHECKINS_CHAT_ID не настроен");
+      logger?.warn("⚠️ [Step 2] TELEGRAM_CHECKINS_CHAT_ID_NEW не настроен");
       return {
         morningReportSuccess: inputData.success,
         checkinsReportSuccess: false,
-        summary: `Утренний отчёт: ${inputData.success ? "✅" : "❌"}\n${inputData.message}\n\nОтчёт по заездам: ❌ TELEGRAM_CHECKINS_CHAT_ID не настроен`,
+        summary: `Утренний отчёт: ${inputData.success ? "✅" : "❌"}\n${inputData.message}\n\nОтчёт по заездам: ❌ TELEGRAM_CHECKINS_CHAT_ID_NEW не настроен`,
       };
     }
 
