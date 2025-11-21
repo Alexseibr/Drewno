@@ -16,6 +16,7 @@ const BnovoServiceItemSchema = z.object({
 
 const BnovoBookingSchema = z.object({
   id: z.string(),
+  bookingNumber: z.string().optional(),
   createdAt: z.string(),
   arrivalDate: z.string(),
   departureDate: z.string(),
@@ -23,6 +24,7 @@ const BnovoBookingSchema = z.object({
   phone: z.string().optional(),
   roomId: z.string(),
   roomTitle: z.string(),
+  planName: z.string().optional(),
   adults: z.number(),
   children: z.number(),
   totalAmount: z.number(),
@@ -287,13 +289,15 @@ function mapBookingFromApi(raw: any): z.infer<typeof BnovoBookingSchema> {
 
   return {
     id: String(raw.id || ""),
+    bookingNumber: raw.number || undefined,
     createdAt: raw.dates?.create_date || "",
     arrivalDate: (raw.dates?.arrival || "").substring(0, 19),
     departureDate: (raw.dates?.departure || "").substring(0, 19),
     guestName: fullName || "Не указано",
     phone: raw.customer?.phone ? String(raw.customer.phone) : undefined,
     roomId: String(raw.id || ""),
-    roomTitle: raw.room_name || "Не указана",
+    roomTitle: raw.room_name || undefined,
+    planName: raw.plan_name || undefined,
     adults: Number(raw.extra?.adults || 0),
     children: Number(raw.extra?.children || 0),
     totalAmount: Number(raw.amount || 0),

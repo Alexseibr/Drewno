@@ -18,13 +18,15 @@ const ServiceItemSchema = z.object({
  */
 const BookingSchema = z.object({
   id: z.string(),
+  bookingNumber: z.string().optional(),
   createdAt: z.string(),
   arrivalDate: z.string(),
   departureDate: z.string(),
   guestName: z.string(),
   phone: z.string().optional(),
   roomId: z.string(),
-  roomTitle: z.string(),
+  roomTitle: z.string().optional(),
+  planName: z.string().optional(),
   adults: z.number(),
   children: z.number(),
   totalAmount: z.number(),
@@ -83,9 +85,12 @@ export const formatMorningTasksReport = createTool({
       const comment = booking.comment
         ? `📝 Комментарий: ${booking.comment}`
         : undefined;
+      
+      const roomInfo = booking.roomTitle || booking.planName || "Не указана";
+      const bookingNum = booking.bookingNumber ? ` [№${booking.bookingNumber}]` : "";
 
       return [
-        `${index + 1}) ${booking.guestName} — ${booking.roomTitle}`,
+        `${index + 1}) ${booking.guestName} — ${roomInfo}${bookingNum}`,
         `📅 ${dates}`,
         `💰 ${formatMoney(booking.totalAmount)} | Остаток: ${formatMoney(remaining)}`,
         prepaymentLine,
@@ -166,9 +171,12 @@ export const formatTodayCheckinsReport = createTool({
         booking.departureDate,
         timezone
       );
+      
+      const roomInfo = booking.roomTitle || booking.planName || "Не указана";
+      const bookingNum = booking.bookingNumber ? ` [№${booking.bookingNumber}]` : "";
 
       return [
-        `${index + 1}) ${booking.roomTitle}`,
+        `${index + 1}) ${roomInfo}${bookingNum}`,
         `👥 ${guestsLine}`,
         arrivalWindow,
         `📅 ${stayDates}`,
