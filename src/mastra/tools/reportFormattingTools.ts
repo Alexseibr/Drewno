@@ -90,6 +90,8 @@ export const formatMorningTasksReport = createTool({
       
       // Определяем информацию о комнате
       let roomInfo = booking.roomNumber || booking.roomTitle || booking.planName || "Не указана";
+      // Заменяем "Комната" на "Дом"
+      roomInfo = roomInfo.replace(/Комната/gi, "Дом");
       if (booking.roomTags) {
         roomInfo = `${roomInfo} (${booking.roomTags})`;
       }
@@ -180,6 +182,8 @@ export const formatTodayCheckinsReport = createTool({
       
       // Определяем информацию о комнате
       let roomInfo = booking.roomNumber || booking.roomTitle || booking.planName || "Не указана";
+      // Заменяем "Комната" на "Дом"
+      roomInfo = roomInfo.replace(/Комната/gi, "Дом");
       if (booking.roomTags) {
         roomInfo = `${roomInfo} (${booking.roomTags})`;
       }
