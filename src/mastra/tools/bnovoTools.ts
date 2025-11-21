@@ -304,6 +304,8 @@ function mapBookingFromApi(raw: any): z.infer<typeof BnovoBookingSchema> {
     roomTags = raw.tags.join(", ");
   } else if (raw.tags && typeof raw.tags === 'string') {
     roomTags = raw.tags;
+  } else if (raw.category?.tags) {
+    roomTags = raw.category.tags;
   }
 
   return {
