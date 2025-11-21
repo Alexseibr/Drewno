@@ -23,7 +23,9 @@ const BnovoBookingSchema = z.object({
   guestName: z.string(),
   phone: z.string().optional(),
   roomId: z.string(),
-  roomTitle: z.string(),
+  roomNumber: z.string().optional(),
+  roomTitle: z.string().optional(),
+  roomTags: z.string().optional(),
   planName: z.string().optional(),
   adults: z.number(),
   children: z.number(),
@@ -287,6 +289,23 @@ function mapBookingFromApi(raw: any): z.infer<typeof BnovoBookingSchema> {
   const customerSurname = raw.customer?.surname || "";
   const fullName = `${customerName} ${customerSurname}`.trim();
 
+  // Извлекаем номер комнаты и теги (если доступны)
+  let roomNumber: string | undefined;
+  let roomTags: string | undefined;
+  
+  // Возможные варианты получения информации о комнате
+  if (raw.room_name && raw.room_name.trim()) {
+    // room_name может содержать "Комната 1" или "1. Мятный" и т.д.
+    roomNumber = raw.room_name;
+  }
+  
+  // Теги могут быть в разных местах API
+  if (raw.tags && Array.isArray(raw.tags)) {
+    roomTags = raw.tags.join(", ");
+  } else if (raw.tags && typeof raw.tags === 'string') {
+    roomTags = raw.tags;
+  }
+
   return {
     id: String(raw.id || ""),
     bookingNumber: raw.number || undefined,
@@ -296,7 +315,9 @@ function mapBookingFromApi(raw: any): z.infer<typeof BnovoBookingSchema> {
     guestName: fullName || "Не указано",
     phone: raw.customer?.phone ? String(raw.customer.phone) : undefined,
     roomId: String(raw.id || ""),
+    roomNumber: roomNumber,
     roomTitle: raw.room_name || undefined,
+    roomTags: roomTags,
     planName: raw.plan_name || undefined,
     adults: Number(raw.extra?.adults || 0),
     children: Number(raw.extra?.children || 0),

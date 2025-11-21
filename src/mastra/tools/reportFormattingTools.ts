@@ -25,7 +25,9 @@ const BookingSchema = z.object({
   guestName: z.string(),
   phone: z.string().optional(),
   roomId: z.string(),
+  roomNumber: z.string().optional(),
   roomTitle: z.string().optional(),
+  roomTags: z.string().optional(),
   planName: z.string().optional(),
   adults: z.number(),
   children: z.number(),
@@ -86,7 +88,11 @@ export const formatMorningTasksReport = createTool({
         ? `📝 Комментарий: ${booking.comment}`
         : undefined;
       
-      const roomInfo = booking.roomTitle || booking.planName || "Не указана";
+      // Определяем информацию о комнате
+      let roomInfo = booking.roomNumber || booking.roomTitle || booking.planName || "Не указана";
+      if (booking.roomTags) {
+        roomInfo = `${roomInfo} (${booking.roomTags})`;
+      }
       const bookingNum = booking.bookingNumber ? ` [№${booking.bookingNumber}]` : "";
 
       return [
@@ -172,7 +178,11 @@ export const formatTodayCheckinsReport = createTool({
         timezone
       );
       
-      const roomInfo = booking.roomTitle || booking.planName || "Не указана";
+      // Определяем информацию о комнате
+      let roomInfo = booking.roomNumber || booking.roomTitle || booking.planName || "Не указана";
+      if (booking.roomTags) {
+        roomInfo = `${roomInfo} (${booking.roomTags})`;
+      }
       const bookingNum = booking.bookingNumber ? ` [№${booking.bookingNumber}]` : "";
 
       return [
