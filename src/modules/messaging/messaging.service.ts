@@ -64,6 +64,10 @@ export class MessagingHubService {
     return contact;
   }
 
+  async getContactById(contactId: string): Promise<Contact | null> {
+    return ContactModel.findById(contactId).exec();
+  }
+
   async getOrCreateConversation(contactId: string, channel: MessagingChannel): Promise<Conversation> {
     const conversation = await ConversationModel.findOneAndUpdate(
       { contactId, channel } as FilterQuery<Conversation>,
