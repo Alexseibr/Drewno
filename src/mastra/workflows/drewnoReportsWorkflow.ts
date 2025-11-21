@@ -4,7 +4,7 @@ import { drewnoReportsAgent } from "../agents/drewnoReportsAgent";
 
 /**
  * Step 1: Generate and Send Morning Tasks Report
- * Собирает вчерашние брони без полной предоплаты и отправляет отчёт администратору
+ * Использует агента для получения вчерашних броней без полной предоплаты и отправки отчёта
  */
 const generateMorningTasksReport = createStep({
   id: "generate-morning-tasks-report",
@@ -15,7 +15,6 @@ const generateMorningTasksReport = createStep({
   outputSchema: z.object({
     success: z.boolean(),
     message: z.string(),
-    reportSent: z.boolean(),
   }),
 
   execute: async ({ mastra }) => {
@@ -26,11 +25,10 @@ const generateMorningTasksReport = createStep({
     const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
 
     if (!adminChatId) {
-      logger?.warn("⚠️ [Step 1] TELEGRAM_ADMIN_CHAT_ID не настроен, пропускаем отчёт");
+      logger?.warn("⚠️ [Step 1] TELEGRAM_ADMIN_CHAT_ID не настроен");
       return {
         success: false,
         message: "TELEGRAM_ADMIN_CHAT_ID не настроен",
-        reportSent: false,
       };
     }
 
@@ -53,55 +51,50 @@ const generateMorningTasksReport = createStep({
       month: "2-digit",
     });
 
-    logger?.info("📅 [Step 1] Период отчёта", {
-      from: startOfYesterday.toISOString(),
-      to: endOfYesterday.toISOString(),
-      dateLabel,
-    });
-
     const prompt = `
-      Пожалуйста, выполни следующие действия для создания утреннего отчёта:
+Выполни следующие действия для создания утреннего отчёта:
 
-      1. Получи все брони, созданные вчера (${dateLabel}) используя инструмент getBnovoBookingsCreatedBetween
-         - Период: с ${startOfYesterday.toISOString()} по ${endOfYesterday.toISOString()}
+1. Используй инструмент getBnovoBookingsCreatedBetween для получения всех броней, созданных вчера:
+   - fromIso: ${startOfYesterday.toISOString()}
+   - toIso: ${endOfYesterday.toISOString()}
 
-      2. Отфильтруй только те брони, где prepaymentAmount меньше totalAmount (не полная предоплата)
+2. Из полученных броней отфильтруй только те, где prepaymentAmount меньше totalAmount (неполная предоплата)
 
-      3. Сформируй отчёт используя инструмент formatMorningTasksReport
-         - Передай отфильтрованный список броней
-         - Метка даты: ${dateLabel}
-         - Часовой пояс: ${timezone}
+3. Используй инструмент formatMorningTasksReport для форматирования отчёта:
+   - bookings: отфильтрованный список броней
+   - dateLabel: ${dateLabel}
+   - timezone: ${timezone}
 
-      4. Отправь отчёт в Telegram используя инструмент sendTelegramMessage
-         - ID чата: ${adminChatId}
-         - Текст: результат форматирования из шага 3
+4. Используй инструмент sendTelegramMessage для отправки отчёта:
+   - chatId: ${adminChatId}
+   - text: результат форматирования из шага 3
 
-      5. Сообщи мне результат: сколько броней было найдено, сколько требуют звонка, и был ли отчёт отправлен успешно.
-    `;
+5. Сообщи результат в формате: "Успешно: <true/false>. Найдено броней: <число>. Требуют звонка: <число>. Отправлено: <true/false>."
+
+ВАЖНО: Если какой-то инструмент выдал ошибку, сообщи об этом в ответе.
+`;
 
     try {
       const response = await drewnoReportsAgent.generateLegacy([
         { role: "user", content: prompt },
       ]);
 
-      logger?.info("✅ [Step 1] Утренний отчёт обработан агентом", {
+      logger?.info("✅ [Step 1] Агент выполнил задачу", {
         responseLength: response.text.length,
       });
 
       return {
         success: true,
         message: response.text,
-        reportSent: true,
       };
     } catch (error: any) {
-      logger?.error("❌ [Step 1] Ошибка генерации утреннего отчёта", {
+      logger?.error("❌ [Step 1] Ошибка выполнения агента", {
         error: error.message,
       });
 
       return {
         success: false,
         message: `Ошибка: ${error.message}`,
-        reportSent: false,
       };
     }
   },
@@ -109,7 +102,7 @@ const generateMorningTasksReport = createStep({
 
 /**
  * Step 2: Generate and Send Today Checkins Report
- * Собирает брони с заездом на сегодня и отправляет отчёт
+ * Использует агента для получения сегодняшних заездов и отправки отчёта
  */
 const generateTodayCheckinsReport = createStep({
   id: "generate-today-checkins-report",
@@ -118,7 +111,6 @@ const generateTodayCheckinsReport = createStep({
   inputSchema: z.object({
     success: z.boolean(),
     message: z.string(),
-    reportSent: z.boolean(),
   }),
 
   outputSchema: z.object({
@@ -129,19 +121,17 @@ const generateTodayCheckinsReport = createStep({
 
   execute: async ({ inputData, mastra }) => {
     const logger = mastra?.getLogger();
-    logger?.info("🚀 [Step 2] Начало генерации отчёта по заездам", {
-      previousStepSuccess: inputData.success,
-    });
+    logger?.info("🚀 [Step 2] Начало генерации отчёта по заездам");
 
     const timezone = process.env.TZ || "Europe/Minsk";
     const checkinsChatId = process.env.TELEGRAM_CHECKINS_CHAT_ID;
 
     if (!checkinsChatId) {
-      logger?.warn("⚠️ [Step 2] TELEGRAM_CHECKINS_CHAT_ID не настроен, пропускаем отчёт");
+      logger?.warn("⚠️ [Step 2] TELEGRAM_CHECKINS_CHAT_ID не настроен");
       return {
         morningReportSuccess: inputData.success,
         checkinsReportSuccess: false,
-        summary: `Утренний отчёт: ${inputData.success ? "✅" : "❌"}. Отчёт по заездам: TELEGRAM_CHECKINS_CHAT_ID не настроен`,
+        summary: `Утренний отчёт: ${inputData.success ? "✅" : "❌"}\n${inputData.message}\n\nОтчёт по заездам: ❌ TELEGRAM_CHECKINS_CHAT_ID не настроен`,
       };
     }
 
@@ -160,49 +150,44 @@ const generateTodayCheckinsReport = createStep({
       month: "2-digit",
     });
 
-    logger?.info("📅 [Step 2] Дата заездов", {
-      todayDate,
-      dateLabel,
-    });
-
     const prompt = `
-      Пожалуйста, выполни следующие действия для создания отчёта по заездам:
+Выполни следующие действия для создания отчёта по заездам:
 
-      1. Получи все брони с заездом на сегодня (${dateLabel}) используя инструмент getBnovoBookingsByArrivalDate
-         - Дата заезда: ${todayDate}
+1. Используй инструмент getBnovoBookingsByArrivalDate для получения всех броней с заездом на сегодня:
+   - arrivalDate: ${todayDate}
 
-      2. Сформируй отчёт используя инструмент formatTodayCheckinsReport
-         - Передай список броней
-         - Метка даты: ${dateLabel}
-         - Часовой пояс: ${timezone}
+2. Используй инструмент formatTodayCheckinsReport для форматирования отчёта:
+   - bookings: полученный список броней
+   - dateLabel: ${dateLabel}
+   - timezone: ${timezone}
 
-      3. Отправь отчёт в Telegram используя инструмент sendTelegramMessage
-         - ID чата: ${checkinsChatId}
-         - Текст: результат форматирования из шага 2
+3. Используй инструмент sendTelegramMessage для отправки отчёта:
+   - chatId: ${checkinsChatId}
+   - text: результат форматирования из шага 2
 
-      4. Сообщи мне результат: сколько броней с заездом на сегодня было найдено и был ли отчёт отправлен успешно.
-    `;
+4. Сообщи результат в формате: "Успешно: <true/false>. Найдено заездов: <число>. Отправлено: <true/false>."
+
+ВАЖНО: Если какой-то инструмент выдал ошибку, сообщи об этом в ответе.
+`;
 
     try {
       const response = await drewnoReportsAgent.generateLegacy([
         { role: "user", content: prompt },
       ]);
 
-      logger?.info("✅ [Step 2] Отчёт по заездам обработан агентом", {
+      logger?.info("✅ [Step 2] Агент выполнил задачу", {
         responseLength: response.text.length,
       });
 
       const summary = `
 Результаты ежедневных отчётов DREWNO:
 
-Утренний отчёт администратору: ${inputData.success ? "✅ Отправлен" : "❌ Ошибка"}
+Утренний отчёт администратору: ${inputData.success ? "✅" : "❌"}
 ${inputData.message}
 
-Отчёт по заездам на сегодня: ✅ Отправлен
+Отчёт по заездам на сегодня: ✅
 ${response.text}
       `.trim();
-
-      logger?.info("📊 [Step 2] Итоговая сводка", { summary });
 
       return {
         morningReportSuccess: inputData.success,
@@ -210,14 +195,14 @@ ${response.text}
         summary,
       };
     } catch (error: any) {
-      logger?.error("❌ [Step 2] Ошибка генерации отчёта по заездам", {
+      logger?.error("❌ [Step 2] Ошибка выполнения агента", {
         error: error.message,
       });
 
       return {
         morningReportSuccess: inputData.success,
         checkinsReportSuccess: false,
-        summary: `Утренний отчёт: ${inputData.success ? "✅" : "❌"}. Отчёт по заездам: ❌ Ошибка - ${error.message}`,
+        summary: `Утренний отчёт: ${inputData.success ? "✅" : "❌"}\n${inputData.message}\n\nОтчёт по заездам: ❌ Ошибка - ${error.message}`,
       };
     }
   },
@@ -225,7 +210,7 @@ ${response.text}
 
 /**
  * Create the Drewno Daily Reports Workflow
- * Этот workflow запускается по расписанию и генерирует два отчёта
+ * Этот workflow запускается по расписанию и генерирует два отчёта через агента
  */
 export const drewnoReportsWorkflow = createWorkflow({
   id: "drewno-daily-reports",

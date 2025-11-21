@@ -28,12 +28,15 @@ export const sendTelegramMessage = createTool({
       textLength: context.text.length,
     });
 
-    try {
-      const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
-      if (!botToken) {
-        throw new Error("TELEGRAM_BOT_TOKEN not configured");
-      }
+    if (!botToken) {
+      const error = "TELEGRAM_BOT_TOKEN not configured";
+      logger?.error("❌ [sendTelegramMessage]", { error });
+      throw new Error(error);
+    }
+
+    try {
 
       const response = await axios.post(
         `https://api.telegram.org/bot${botToken}/sendMessage`,
@@ -57,24 +60,19 @@ export const sendTelegramMessage = createTool({
           messageId: response.data.result?.message_id,
         };
       } else {
+        const errorMsg = response.data?.description || "Unknown Telegram API error";
         logger?.error("❌ [sendTelegramMessage] Telegram API вернул ошибку", {
           response: response.data,
         });
 
-        return {
-          success: false,
-          error: response.data?.description || "Unknown error",
-        };
+        throw new Error(`Telegram API error: ${errorMsg}`);
       }
     } catch (error: any) {
       logger?.error("❌ [sendTelegramMessage] Ошибка отправки", {
         error: error.message,
       });
 
-      return {
-        success: false,
-        error: error.message,
-      };
+      throw error;
     }
   },
 });

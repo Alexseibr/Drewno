@@ -59,14 +59,17 @@ export const getBnovoBookingsCreatedBetween = createTool({
       toIso: context.toIso,
     });
 
-    try {
-      const baseUrl = process.env.BNOVO_API_BASE_URL;
-      const apiKey = process.env.BNOVO_API_KEY;
-      const hotelId = process.env.BNOVO_HOTEL_ID;
+    const baseUrl = process.env.BNOVO_API_BASE_URL;
+    const apiKey = process.env.BNOVO_API_KEY;
+    const hotelId = process.env.BNOVO_HOTEL_ID;
 
-      if (!baseUrl || !apiKey || !hotelId) {
-        throw new Error("Bnovo API credentials not configured");
-      }
+    if (!baseUrl || !apiKey || !hotelId) {
+      const error = "Bnovo API credentials not configured (BNOVO_API_BASE_URL, BNOVO_API_KEY, BNOVO_HOTEL_ID)";
+      logger?.error("❌ [getBnovoBookingsCreatedBetween]", { error });
+      throw new Error(error);
+    }
+
+    try {
 
       const response = await axios.get(`${baseUrl}/bookings`, {
         headers: {
@@ -94,13 +97,10 @@ export const getBnovoBookingsCreatedBetween = createTool({
         count: bookings.length,
       };
     } catch (error: any) {
-      logger?.error("❌ [getBnovoBookingsCreatedBetween] Ошибка", {
+      logger?.error("❌ [getBnovoBookingsCreatedBetween] Ошибка API", {
         error: error.message,
       });
-      return {
-        bookings: [],
-        count: 0,
-      };
+      throw error;
     }
   },
 });
@@ -127,14 +127,17 @@ export const getBnovoBookingsByArrivalDate = createTool({
       arrivalDate: context.arrivalDate,
     });
 
-    try {
-      const baseUrl = process.env.BNOVO_API_BASE_URL;
-      const apiKey = process.env.BNOVO_API_KEY;
-      const hotelId = process.env.BNOVO_HOTEL_ID;
+    const baseUrl = process.env.BNOVO_API_BASE_URL;
+    const apiKey = process.env.BNOVO_API_KEY;
+    const hotelId = process.env.BNOVO_HOTEL_ID;
 
-      if (!baseUrl || !apiKey || !hotelId) {
-        throw new Error("Bnovo API credentials not configured");
-      }
+    if (!baseUrl || !apiKey || !hotelId) {
+      const error = "Bnovo API credentials not configured (BNOVO_API_BASE_URL, BNOVO_API_KEY, BNOVO_HOTEL_ID)";
+      logger?.error("❌ [getBnovoBookingsByArrivalDate]", { error });
+      throw new Error(error);
+    }
+
+    try {
 
       const response = await axios.get(`${baseUrl}/bookings`, {
         headers: {
@@ -161,13 +164,10 @@ export const getBnovoBookingsByArrivalDate = createTool({
         count: bookings.length,
       };
     } catch (error: any) {
-      logger?.error("❌ [getBnovoBookingsByArrivalDate] Ошибка", {
+      logger?.error("❌ [getBnovoBookingsByArrivalDate] Ошибка API", {
         error: error.message,
       });
-      return {
-        bookings: [],
-        count: 0,
-      };
+      throw error;
     }
   },
 });
