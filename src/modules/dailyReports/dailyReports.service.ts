@@ -1,74 +1,35 @@
-/*
- * TODO: Replace placeholder interfaces with actual Bnovo API response shapes.
- * Interfaces below are inferred from available requirements and should be
- * adjusted to match real API fields in bnovoService.
- */
-
-export interface BookingServiceItem {
-  code: string;
-  title: string;
-  // Optional quantity and notes per service item.
-  quantity?: number;
-  comment?: string;
-}
-
-export interface Booking {
-  id: string | number;
-  guestName: string;
-  phone?: string;
-  roomTitle: string;
-  arrivalDate: string; // YYYY-MM-DD in local TZ
-  departureDate: string; // YYYY-MM-DD in local TZ
-  arrivalTimeFrom?: string;
-  arrivalTimeTo?: string;
-  adults: number;
-  children?: number;
-  totalAmount: number;
-  prepaymentAmount?: number;
-  comment?: string;
-  specialRequests?: string;
-  services?: BookingServiceItem[];
-  status?: string; // e.g. confirmed / paid / awaiting_checkin
-}
-
-export interface BnovoService {
-  getBookingsCreatedBetween: (from: Date, to: Date) => Promise<Booking[]>;
-  getBookingsByArrivalDate: (date: string) => Promise<Booking[]>;
-}
-
-export interface TelegramService {
-  sendMessage: (chatId: string, text: string, options?: Record<string, unknown>) => Promise<void>;
-}
+import { BnovoService, bnovoService } from '../bnovo/bnovo.service';
+import { BnovoBooking } from '../bnovo/bnovo.types';
+import { telegramService, TelegramService } from '../telegram/telegram.service';
 
 export class DailyReportsService {
   constructor(
-    private readonly bnovoService: BnovoService,
-    private readonly telegramService: TelegramService,
+    private readonly bnovo: BnovoService = bnovoService,
+    private readonly telegram: TelegramService = telegramService,
     private readonly timezone: string = process.env.TZ || 'Europe/Minsk',
   ) {}
 
   async sendMorningTasksReport(): Promise<void> {
     const { startOfYesterday, endOfYesterday, label } = this.getYesterdayInterval();
 
-    let bookings: Booking[] = [];
+    let bookings: BnovoBooking[] = [];
     try {
-      bookings = await this.bnovoService.getBookingsCreatedBetween(startOfYesterday, endOfYesterday);
+      bookings = await this.bnovo.getBookingsCreatedBetween(
+        startOfYesterday.toISOString(),
+        endOfYesterday.toISOString(),
+      );
     } catch (error) {
       console.error('[DailyReports] Ошибка получения броней за вчера в Bnovo', error);
       return;
     }
 
-    const tasks = bookings.filter((booking) => {
-      const total = booking.totalAmount || 0;
-      const prepaid = booking.prepaymentAmount || 0;
-      return !total || prepaid < total;
-    });
+    const tasks = bookings.filter((booking) => booking.prepaymentAmount < booking.totalAmount);
 
     const chatId = process.env.TELEGRAM_ADMIN_CHAT_ID || '';
     const message = this.formatMorningTasksMessage(tasks, label);
 
     try {
-      await this.telegramService.sendMessage(chatId, message, { parse_mode: 'HTML' });
+      await this.telegram.sendMessage(chatId, message);
     } catch (error) {
       console.error('[DailyReports] Ошибка отправки утреннего отчёта в Telegram', error);
     }
@@ -78,31 +39,25 @@ export class DailyReportsService {
     const todayLabel = this.formatDayMonth(this.getZonedNow());
     const todayDate = this.getTodayDateString();
 
-    let bookings: Booking[] = [];
+    let bookings: BnovoBooking[] = [];
     try {
-      bookings = await this.bnovoService.getBookingsByArrivalDate(todayDate);
+      bookings = await this.bnovo.getBookingsByArrivalDate(todayDate);
     } catch (error) {
       console.error('[DailyReports] Ошибка получения сегодняшних заездов в Bnovo', error);
       return;
     }
 
-    const allowedStatuses = ['confirmed', 'paid', 'awaiting_checkin'];
-    const filtered = bookings.filter((booking) => {
-      if (!booking.status) return true;
-      return allowedStatuses.includes(booking.status);
-    });
-
     const chatId = process.env.TELEGRAM_CHECKINS_CHAT_ID || '';
-    const message = this.formatTodayCheckinsMessage(filtered, todayLabel);
+    const message = this.formatTodayCheckinsMessage(bookings, todayLabel);
 
     try {
-      await this.telegramService.sendMessage(chatId, message, { parse_mode: 'HTML' });
+      await this.telegram.sendMessage(chatId, message);
     } catch (error) {
       console.error('[DailyReports] Ошибка отправки отчёта по заездам в Telegram', error);
     }
   }
 
-  private formatMorningTasksMessage(bookings: Booking[], label: string): string {
+  private formatMorningTasksMessage(bookings: BnovoBooking[], label: string): string {
     if (!bookings.length) {
       return `🌅 Утренние задачи DREWNO за ${label}: задач нет.`;
     }
@@ -128,7 +83,7 @@ export class DailyReportsService {
     return ['🌅 Утренние задачи DREWNO (новые брони за вчера без предоплаты)', '', ...lines].join('\n');
   }
 
-  private formatTodayCheckinsMessage(bookings: Booking[], todayLabel: string): string {
+  private formatTodayCheckinsMessage(bookings: BnovoBooking[], todayLabel: string): string {
     if (!bookings.length) {
       return `🏡 Заселения на сегодня (${todayLabel}): заездов нет.`;
     }
@@ -147,7 +102,6 @@ export class DailyReportsService {
         .join(', ');
 
       const comment = booking.comment ? `📝 Комментарий: ${booking.comment}` : undefined;
-      const wishes = booking.specialRequests ? `📝 Пожелания: ${booking.specialRequests}` : undefined;
       const servicesLine = services ? `🔥 Услуги: ${services}` : undefined;
       const stayDates = this.formatDateRange(booking.arrivalDate, booking.departureDate);
 
@@ -159,7 +113,6 @@ export class DailyReportsService {
         `📞 ${booking.phone || '—'} (${booking.guestName})`,
         servicesLine,
         comment,
-        wishes,
       ]
         .filter(Boolean)
         .join('\n');
@@ -232,7 +185,4 @@ export class DailyReportsService {
   }
 }
 
-// TODO: Replace imports with actual implementations from your project.
-// import { bnovoService } from '../bnovo/bnovo.service';
-// import { telegramService } from '../telegram/telegram.service';
-// export const dailyReportsService = new DailyReportsService(bnovoService, telegramService);
+export const dailyReportsService = new DailyReportsService(bnovoService, telegramService);
