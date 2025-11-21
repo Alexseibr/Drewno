@@ -289,6 +289,11 @@ function mapBookingFromApi(raw: any): z.infer<typeof BnovoBookingSchema> {
   const customerSurname = raw.customer?.surname || "";
   const fullName = `${customerName} ${customerSurname}`.trim();
 
+  // Временная полная распечатка для отладки
+  if (raw.dates?.arrival && raw.dates.arrival.includes('2025-11-21')) {
+    console.log("🔍 FULL RAW DATA для брони на 21.11:", JSON.stringify(raw, null, 2));
+  }
+
   // Извлекаем номер комнаты и теги (если доступны)
   let roomNumber: string | undefined;
   let roomTags: string | undefined;
