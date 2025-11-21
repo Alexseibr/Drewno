@@ -31,3 +31,16 @@ import { telegramService } from './src/modules/telegram/telegram.service';
 const dailyReportsService = new DailyReportsService(bnovoService, telegramService);
 initDailyReportsScheduler(dailyReportsService);
 ```
+
+## Быстрые проверки модулей
+
+### NLU
+
+1. Скопируйте `.env.example` в `.env` и при необходимости заполните переменные.
+2. Установите зависимости: `npm install`.
+3. Запустите проверку: `npm run test:nlu` или передайте свой текст `npm run test:nlu -- "Привет, сколько стоит?"`.
+
+### Messaging Hub + MongoDB
+
+1. Убедитесь, что в `.env` указан `MONGODB_URI`.
+2. Выполните `npm run test:messaging` — скрипт создаст/найдёт контакт, диалог, сохранит сообщение и свяжет бронирование.
