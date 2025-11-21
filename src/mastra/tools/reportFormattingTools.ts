@@ -89,7 +89,7 @@ export const formatMorningTasksReport = createTool({
         `📅 ${dates}`,
         `💰 ${formatMoney(booking.totalAmount)} | Остаток: ${formatMoney(remaining)}`,
         prepaymentLine,
-        `📞 ${booking.phone || "—"}`,
+        `📞 ${booking.phone ? `+${booking.phone}` : "—"}`,
         comment,
       ]
         .filter(Boolean)
@@ -172,7 +172,7 @@ export const formatTodayCheckinsReport = createTool({
         `👥 ${guestsLine}`,
         arrivalWindow,
         `📅 ${stayDates}`,
-        `📞 ${booking.phone || "—"} (${booking.guestName})`,
+        `📞 ${booking.phone ? `+${booking.phone}` : "—"} (${booking.guestName})`,
         servicesLine,
         comment,
       ]
