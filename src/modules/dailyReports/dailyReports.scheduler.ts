@@ -1,58 +1,47 @@
 import cron from 'node-cron';
 import { DailyReportsService } from './dailyReports.service';
 
-type SchedulerOptions = {
-  timezone?: string;
-};
+// TODO: Replace imports with actual implementations from your project.
+// import { bnovoService } from '../bnovo/bnovo.service';
+// import { telegramService } from '../telegram/telegram.service';
+// const dailyReportsService = new DailyReportsService(bnovoService, telegramService);
 
-export class DailyReportsScheduler {
-  private readonly timezone: string;
+export function initDailyReportsScheduler(dailyReportsService: DailyReportsService): void {
+  const timezone = process.env.TZ || 'Europe/Minsk';
+  const adminCron = normalizeCron(process.env.DAILY_REPORT_CRON_ADMIN);
+  const checkinsCron = normalizeCron(process.env.DAILY_REPORT_CRON_CHECKINS);
 
-  constructor(private readonly reportsService: DailyReportsService, options: SchedulerOptions = {}) {
-    this.timezone = options.timezone || process.env.TZ || 'UTC';
+  if (adminCron) {
+    cron.schedule(adminCron, () => runJob(() => dailyReportsService.sendMorningTasksReport()), { timezone });
+    console.info(`[DailyReportsScheduler] Утренний отчёт запланирован по cron "${adminCron}" (${timezone}).`);
+  } else {
+    console.warn('[DailyReportsScheduler] DAILY_REPORT_CRON_ADMIN не задан — утренний отчёт не будет запущен.');
   }
 
-  initialize(): void {
-    const adminCron = this.normalizeCron(process.env.DAILY_REPORT_TIME_ADMIN);
-    const checkinsCron = this.normalizeCron(process.env.DAILY_REPORT_TIME_CHECKINS);
+  if (checkinsCron) {
+    cron.schedule(checkinsCron, () => runJob(() => dailyReportsService.sendTodayCheckinsReport()), { timezone });
+    console.info(`[DailyReportsScheduler] Отчёт по заездам запланирован по cron "${checkinsCron}" (${timezone}).`);
+  } else {
+    console.warn('[DailyReportsScheduler] DAILY_REPORT_CRON_CHECKINS не задан — отчёт по заездам не будет запущен.');
+  }
+}
 
-    if (adminCron) {
-      cron.schedule(adminCron, () => this.wrapJob(this.reportsService.sendMorningTasksReport.bind(this.reportsService)), {
-        timezone: this.timezone,
-      });
-      console.info(`[DailyReportsScheduler] Admin report scheduled at ${adminCron} (${this.timezone})`);
-    } else {
-      console.warn('[DailyReportsScheduler] DAILY_REPORT_TIME_ADMIN is not configured. Admin report will not run.');
-    }
+function normalizeCron(value?: string): string | undefined {
+  if (!value) return undefined;
 
-    if (checkinsCron) {
-      cron.schedule(checkinsCron, () => this.wrapJob(this.reportsService.sendTodayCheckinsReport.bind(this.reportsService)), {
-        timezone: this.timezone,
-      });
-      console.info(`[DailyReportsScheduler] Check-ins report scheduled at ${checkinsCron} (${this.timezone})`);
-    } else {
-      console.warn('[DailyReportsScheduler] DAILY_REPORT_TIME_CHECKINS is not configured. Check-ins report will not run.');
-    }
+  const timeMatch = value.match(/^(\d{1,2}):(\d{2})$/);
+  if (timeMatch) {
+    const [, hour, minute] = timeMatch;
+    return `${minute} ${hour} * * *`;
   }
 
-  private normalizeCron(value?: string): string | undefined {
-    if (!value) return undefined;
+  return value;
+}
 
-    // Support "HH:mm" format alongside standard cron strings.
-    const timeMatch = value.match(/^(\d{1,2}):(\d{2})$/);
-    if (timeMatch) {
-      const [_, hour, minute] = timeMatch;
-      return `${minute} ${hour} * * *`;
-    }
-
-    return value;
-  }
-
-  private async wrapJob(job: () => Promise<void>): Promise<void> {
-    try {
-      await job();
-    } catch (error) {
-      console.error('[DailyReportsScheduler] Scheduled job failed', error);
-    }
+async function runJob(job: () => Promise<void>): Promise<void> {
+  try {
+    await job();
+  } catch (error) {
+    console.error('[DailyReportsScheduler] Ошибка выполнения планового задания', error);
   }
 }
