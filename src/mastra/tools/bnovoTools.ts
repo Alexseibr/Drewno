@@ -289,19 +289,16 @@ function mapBookingFromApi(raw: any): z.infer<typeof BnovoBookingSchema> {
   const customerSurname = raw.customer?.surname || "";
   const fullName = `${customerName} ${customerSurname}`.trim();
 
-  // Временная полная распечатка для отладки
-  if (raw.dates?.arrival && raw.dates.arrival.includes('2025-11-21')) {
-    console.log("🔍 FULL RAW DATA для брони на 21.11:", JSON.stringify(raw, null, 2));
-  }
-
   // Извлекаем номер комнаты и теги (если доступны)
   let roomNumber: string | undefined;
   let roomTags: string | undefined;
   
-  // Возможные варианты получения информации о комнате
-  if (raw.room_name && raw.room_name.trim()) {
-    // room_name может содержать "Комната 1" или "1. Мятный" и т.д.
-    roomNumber = raw.room_name;
+  // room_name может быть строкой или числом
+  if (raw.room_name) {
+    const roomNameStr = String(raw.room_name).trim();
+    if (roomNameStr) {
+      roomNumber = roomNameStr;
+    }
   }
   
   // Теги могут быть в разных местах API
@@ -323,7 +320,7 @@ function mapBookingFromApi(raw: any): z.infer<typeof BnovoBookingSchema> {
     phone: raw.customer?.phone ? String(raw.customer.phone) : undefined,
     roomId: String(raw.id || ""),
     roomNumber: roomNumber,
-    roomTitle: raw.room_name || undefined,
+    roomTitle: roomNumber,
     roomTags: roomTags,
     planName: raw.plan_name || undefined,
     adults: Number(raw.extra?.adults || 0),

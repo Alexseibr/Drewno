@@ -89,11 +89,15 @@ export const formatMorningTasksReport = createTool({
         : undefined;
       
       // Определяем информацию о доме
-      let roomInfo = booking.roomNumber || booking.roomTitle || "Дом не назначен";
-      // Заменяем "Комната" на "Дом"
-      roomInfo = roomInfo.replace(/Комната/gi, "Дом");
-      if (booking.roomTags) {
-        roomInfo = `${roomInfo} (${booking.roomTags})`;
+      let roomInfo: string;
+      if (booking.roomNumber || booking.roomTitle) {
+        const roomNum = booking.roomNumber || booking.roomTitle || "";
+        roomInfo = `Дом ${roomNum}`;
+        if (booking.roomTags) {
+          roomInfo = `${roomInfo} (${booking.roomTags})`;
+        }
+      } else {
+        roomInfo = "Дом не назначен";
       }
       const bookingNum = booking.bookingNumber ? ` [№${booking.bookingNumber}]` : "";
 
@@ -181,11 +185,15 @@ export const formatTodayCheckinsReport = createTool({
       );
       
       // Определяем информацию о доме
-      let roomInfo = booking.roomNumber || booking.roomTitle || "Дом не назначен";
-      // Заменяем "Комната" на "Дом"
-      roomInfo = roomInfo.replace(/Комната/gi, "Дом");
-      if (booking.roomTags) {
-        roomInfo = `${roomInfo} (${booking.roomTags})`;
+      let roomInfo: string;
+      if (booking.roomNumber || booking.roomTitle) {
+        const roomNum = booking.roomNumber || booking.roomTitle || "";
+        roomInfo = `Дом ${roomNum}`;
+        if (booking.roomTags) {
+          roomInfo = `${roomInfo} (${booking.roomTags})`;
+        }
+      } else {
+        roomInfo = "Дом не назначен";
       }
       const bookingNum = booking.bookingNumber ? ` [№${booking.bookingNumber}]` : "";
 
