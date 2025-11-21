@@ -8,9 +8,18 @@ import { NonRetriableError } from "inngest";
 import { z } from "zod";
 
 import { sharedPostgresStorage } from "./storage";
-import { inngest, inngestServe } from "./inngest";
-import { exampleWorkflow } from "./workflows/exampleWorkflow"; // Replace with your own workflow
-import { exampleAgent } from "./agents/exampleAgent"; // Replace with your own agent
+import { inngest, inngestServe, registerCronWorkflow } from "./inngest";
+import { drewnoReportsWorkflow } from "./workflows/drewnoReportsWorkflow";
+import { drewnoReportsAgent } from "./agents/drewnoReportsAgent";
+import {
+  getBnovoBookingsCreatedBetween,
+  getBnovoBookingsByArrivalDate,
+} from "./tools/bnovoTools";
+import {
+  formatMorningTasksReport,
+  formatTodayCheckinsReport,
+} from "./tools/reportFormattingTools";
+import { sendTelegramMessage } from "./tools/telegramTools";
 
 class ProductionPinoLogger extends MastraLogger {
   protected logger: pino.Logger;
@@ -55,15 +64,23 @@ class ProductionPinoLogger extends MastraLogger {
 
 export const mastra = new Mastra({
   storage: sharedPostgresStorage,
-  // Register your workflows here
-  workflows: {},
-  // Register your agents here
-  agents: {},
+  workflows: {
+    drewnoReportsWorkflow,
+  },
+  agents: {
+    drewnoReportsAgent,
+  },
   mcpServers: {
     allTools: new MCPServer({
       name: "allTools",
       version: "1.0.0",
-      tools: {},
+      tools: {
+        getBnovoBookingsCreatedBetween,
+        getBnovoBookingsByArrivalDate,
+        formatMorningTasksReport,
+        formatTodayCheckinsReport,
+        sendTelegramMessage,
+      },
     }),
   },
   bundler: {
@@ -237,3 +254,12 @@ if (Object.keys(mastra.getAgents()).length > 1) {
     "More than 1 agents found. Currently, more than 1 agents are not supported in the UI, since doing so will cause app state to be inconsistent.",
   );
 }
+
+const cronExpression = process.env.DAILY_REPORT_CRON || "0 8 * * *";
+registerCronWorkflow(cronExpression, drewnoReportsWorkflow);
+
+const logger = mastra.getLogger();
+logger?.info("✅ [Drewno] Daily reports workflow registered", {
+  cronExpression,
+  timezone: process.env.TZ || "Europe/Minsk",
+});
