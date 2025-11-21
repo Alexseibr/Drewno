@@ -88,8 +88,8 @@ export const formatMorningTasksReport = createTool({
         ? `📝 Комментарий: ${booking.comment}`
         : undefined;
       
-      // Определяем информацию о комнате
-      let roomInfo = booking.roomNumber || booking.roomTitle || booking.planName || "Не указана";
+      // Определяем информацию о доме
+      let roomInfo = booking.roomNumber || booking.roomTitle || "Дом не назначен";
       // Заменяем "Комната" на "Дом"
       roomInfo = roomInfo.replace(/Комната/gi, "Дом");
       if (booking.roomTags) {
@@ -180,8 +180,8 @@ export const formatTodayCheckinsReport = createTool({
         timezone
       );
       
-      // Определяем информацию о комнате
-      let roomInfo = booking.roomNumber || booking.roomTitle || booking.planName || "Не указана";
+      // Определяем информацию о доме
+      let roomInfo = booking.roomNumber || booking.roomTitle || "Дом не назначен";
       // Заменяем "Комната" на "Дом"
       roomInfo = roomInfo.replace(/Комната/gi, "Дом");
       if (booking.roomTags) {
