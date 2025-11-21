@@ -53,7 +53,7 @@ async function getBnovoAuthToken(logger?: any): Promise<string> {
     logger?.info("🔑 [getBnovoAuthToken] Получение Bearer token");
     
     const response = await axios.post(
-      `${baseUrl}/auth`,
+      `${baseUrl}api/v1/auth`,
       {
         id: accountId,
         password: apiKey,
@@ -80,6 +80,54 @@ async function getBnovoAuthToken(logger?: any): Promise<string> {
     });
     throw error;
   }
+}
+
+/**
+ * Fetch all bookings with pagination (API returns max 20 per request)
+ */
+async function fetchAllBookings(
+  token: string,
+  baseUrl: string,
+  hotelId: string,
+  dateFrom: string,
+  dateTo: string,
+  logger?: any
+): Promise<any[]> {
+  const allBookings: any[] = [];
+  let offset = 0;
+  const limit = 20;
+  
+  while (true) {
+    const response = await axios.get(`${baseUrl}api/v1/bookings`, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      params: {
+        hotel_id: hotelId,
+        date_from: dateFrom,
+        date_to: dateTo,
+        offset,
+        limit,
+      },
+      timeout: 15000,
+    });
+
+    const bookings = response.data?.data?.bookings || [];
+    allBookings.push(...bookings);
+    
+    const total = response.data?.data?.meta?.total || 0;
+    
+    logger?.info(`📦 [fetchAllBookings] Получено ${bookings.length} броней (offset=${offset}, total=${total})`);
+    
+    // Если получили меньше limit или достигли total, останавливаемся
+    if (bookings.length < limit || allBookings.length >= total) {
+      break;
+    }
+    
+    offset += limit;
+  }
+  
+  return allBookings;
 }
 
 /**
@@ -121,26 +169,21 @@ export const getBnovoBookingsCreatedBetween = createTool({
       const dateFrom = context.fromIso.split('T')[0];
       const dateTo = context.toIso.split('T')[0];
 
-      const response = await axios.get(`${baseUrl}/bookings`, {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-        params: {
-          hotel_id: hotelId,
-          date_from: dateFrom,
-          date_to: dateTo,
-          created_from: context.fromIso,
-          created_to: context.toIso,
-          offset: 0,
-          limit: 20,
-        },
-        timeout: 15000,
+      logger?.info(`📅 [getBnovoBookingsCreatedBetween] Период создания: ${dateFrom} - ${dateTo}`);
+
+      // Получаем все брони за период создания
+      const rawBookings = await fetchAllBookings(token, baseUrl, hotelId, dateFrom, dateTo, logger);
+      
+      // Фильтруем по точной дате создания (ISO timestamp)
+      const fromDate = new Date(context.fromIso);
+      const toDate = new Date(context.toIso);
+      
+      const filtered = rawBookings.filter((b: any) => {
+        const createDate = new Date(b.dates?.create_date || '');
+        return createDate >= fromDate && createDate <= toDate;
       });
 
-      const rawBookings = response.data?.data?.bookings || [];
-      const bookings = Array.isArray(rawBookings)
-        ? rawBookings.map((raw: any) => mapBookingFromApi(raw))
-        : [];
+      const bookings = filtered.map((raw: any) => mapBookingFromApi(raw));
 
       logger?.info("✅ [getBnovoBookingsCreatedBetween] Получено броней", {
         count: bookings.length,
@@ -193,31 +236,29 @@ export const getBnovoBookingsByArrivalDate = createTool({
     try {
       const token = await getBnovoAuthToken(logger);
 
-      const arrivalDate = new Date(context.arrivalDate);
-      const nextDay = new Date(arrivalDate);
-      nextDay.setDate(nextDay.getDate() + 1);
+      // API фильтрует по дате СОЗДАНИЯ, а не заезда
+      // Поэтому запрашиваем брони, созданные за последние 180 дней
+      const now = new Date();
+      const past = new Date(now);
+      past.setDate(past.getDate() - 180);
       
-      const dateTo = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, "0")}-${String(nextDay.getDate()).padStart(2, "0")}`;
+      const dateFrom = `${past.getFullYear()}-${String(past.getMonth() + 1).padStart(2, "0")}-${String(past.getDate()).padStart(2, "0")}`;
+      const dateTo = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
-      const response = await axios.get(`${baseUrl}/bookings`, {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-        params: {
-          hotel_id: hotelId,
-          date_from: context.arrivalDate,
-          date_to: dateTo,
-          arrival: context.arrivalDate,
-          offset: 0,
-          limit: 20,
-        },
-        timeout: 15000,
+      logger?.info(`📅 [getBnovoBookingsByArrivalDate] Запрос броней созданных: ${dateFrom} - ${dateTo}`);
+      logger?.info(`🎯 [getBnovoBookingsByArrivalDate] Фильтруем по дате заезда: ${context.arrivalDate}`);
+
+      // Получаем все брони
+      const rawBookings = await fetchAllBookings(token, baseUrl, hotelId, dateFrom, dateTo, logger);
+
+      // Фильтруем по дате заезда на клиентской стороне
+      const targetDate = context.arrivalDate;
+      const filtered = rawBookings.filter((b: any) => {
+        const arrival = (b.dates?.arrival || '').substring(0, 10);
+        return arrival === targetDate;
       });
 
-      const rawBookings = response.data?.data?.bookings || [];
-      const bookings = Array.isArray(rawBookings)
-        ? rawBookings.map((raw: any) => mapBookingFromApi(raw))
-        : [];
+      const bookings = filtered.map((raw: any) => mapBookingFromApi(raw));
 
       logger?.info("✅ [getBnovoBookingsByArrivalDate] Получено броней", {
         count: bookings.length,
@@ -240,31 +281,28 @@ export const getBnovoBookingsByArrivalDate = createTool({
  * Helper function to map booking from API format to our schema
  */
 function mapBookingFromApi(raw: any): z.infer<typeof BnovoBookingSchema> {
+  const customerName = raw.customer?.name || "";
+  const customerSurname = raw.customer?.surname || "";
+  const fullName = `${customerName} ${customerSurname}`.trim();
+
   return {
-    id: String(raw.id || raw.booking_id || ""),
-    createdAt: raw.created_at || raw.createdAt || "",
-    arrivalDate: raw.arrival || raw.arrival_date || raw.arrivalDate || "",
-    departureDate: raw.departure || raw.departure_date || raw.departureDate || "",
-    guestName: raw.guest?.name || raw.guest_name || raw.guestName || "",
-    phone: raw.guest?.phone || raw.phone || raw.guest_phone || undefined,
-    roomId: String(raw.room?.id || raw.room_id || raw.roomId || ""),
-    roomTitle: raw.room?.title || raw.room_name || raw.roomTitle || "",
-    adults: Number(raw.adults || raw.adults_count || 0),
-    children: Number(raw.children || raw.children_count || 0),
-    totalAmount: Number(raw.amount || raw.total_amount || raw.totalAmount || 0),
-    prepaymentAmount: Number(raw.prepayment || raw.prepayment_amount || raw.prepaymentAmount || 0),
-    currency: raw.currency || "BYN",
-    status: raw.status || "",
-    arrivalTimeFrom: raw.arrival_time?.from || raw.arrival_time_from || undefined,
-    arrivalTimeTo: raw.arrival_time?.to || raw.arrival_time_to || undefined,
-    comment: raw.comment || raw.notes || undefined,
-    services: raw.services?.map((s: any) => ({
-      id: String(s.id || ""),
-      code: s.code || undefined,
-      title: s.title || s.name || "",
-      price: s.price ? Number(s.price) : undefined,
-      quantity: s.quantity ? Number(s.quantity) : undefined,
-      comment: s.comment || undefined,
-    })) || undefined,
+    id: String(raw.id || ""),
+    createdAt: raw.dates?.create_date || "",
+    arrivalDate: (raw.dates?.arrival || "").substring(0, 19),
+    departureDate: (raw.dates?.departure || "").substring(0, 19),
+    guestName: fullName || "Не указано",
+    phone: raw.customer?.phone ? String(raw.customer.phone) : undefined,
+    roomId: String(raw.id || ""),
+    roomTitle: raw.room_name || "Не указана",
+    adults: Number(raw.extra?.adults || 0),
+    children: Number(raw.extra?.children || 0),
+    totalAmount: Number(raw.amount || 0),
+    prepaymentAmount: Number(raw.prepayment || raw.amount_provider || 0),
+    currency: "BYN",
+    status: raw.status?.name || "",
+    arrivalTimeFrom: undefined,
+    arrivalTimeTo: undefined,
+    comment: raw.customer?.notes || undefined,
+    services: undefined,
   };
 }
