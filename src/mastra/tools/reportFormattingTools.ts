@@ -51,7 +51,7 @@ export const formatMorningTasksReport = createTool({
   }),
 
   outputSchema: z.object({
-    formattedReport: z.string(),
+    formattedText: z.string(),
   }),
 
   execute: async ({ context, mastra }) => {
@@ -66,7 +66,7 @@ export const formatMorningTasksReport = createTool({
     if (!context.bookings.length) {
       const report = `🌅 Утренние задачи DREWNO за ${context.dateLabel}: задач нет.`;
       logger?.info("✅ [formatMorningTasksReport] Отчёт сформирован (задач нет)");
-      return { formattedReport: report };
+      return { formattedText: report };
     }
 
     const lines = context.bookings.map((booking, index) => {
@@ -106,7 +106,7 @@ export const formatMorningTasksReport = createTool({
       reportLength: report.length,
     });
 
-    return { formattedReport: report };
+    return { formattedText: report };
   },
 });
 
@@ -124,7 +124,7 @@ export const formatTodayCheckinsReport = createTool({
   }),
 
   outputSchema: z.object({
-    formattedReport: z.string(),
+    formattedText: z.string(),
   }),
 
   execute: async ({ context, mastra }) => {
@@ -139,7 +139,7 @@ export const formatTodayCheckinsReport = createTool({
     if (!context.bookings.length) {
       const report = `🏡 Заселения на сегодня (${context.dateLabel}): заездов нет.`;
       logger?.info("✅ [formatTodayCheckinsReport] Отчёт сформирован (заездов нет)");
-      return { formattedReport: report };
+      return { formattedText: report };
     }
 
     const lines = context.bookings.map((booking, index) => {
@@ -190,7 +190,7 @@ export const formatTodayCheckinsReport = createTool({
       reportLength: report.length,
     });
 
-    return { formattedReport: report };
+    return { formattedText: report };
   },
 });
 
@@ -198,8 +198,12 @@ export const formatTodayCheckinsReport = createTool({
  * Helper functions
  */
 function formatDateRange(from: string, to: string, timezone: string): string {
-  const startDate = new Date(`${from}T00:00:00`);
-  const endDate = new Date(`${to}T00:00:00`);
+  // Extract date part (handles both "YYYY-MM-DD" and "YYYY-MM-DD HH:MM:SS" formats)
+  const fromDate = from.split(' ')[0];
+  const toDate = to.split(' ')[0];
+  
+  const startDate = new Date(`${fromDate}T00:00:00`);
+  const endDate = new Date(`${toDate}T00:00:00`);
 
   const formatter = new Intl.DateTimeFormat("ru-RU", {
     day: "2-digit",
