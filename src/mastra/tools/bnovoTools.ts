@@ -36,6 +36,53 @@ const BnovoBookingSchema = z.object({
 });
 
 /**
+ * Get Bearer Token from Bnovo API
+ */
+async function getBnovoAuthToken(logger?: any): Promise<string> {
+  const baseUrl = process.env.BNOVO_API_BASE_URL;
+  const accountId = process.env.BNOVO_ACCOUNT_ID;
+  const apiKey = process.env.BNOVO_API_KEY;
+
+  if (!baseUrl || !accountId || !apiKey) {
+    const error = "Bnovo API credentials not configured (BNOVO_API_BASE_URL, BNOVO_ACCOUNT_ID, BNOVO_API_KEY)";
+    logger?.error("❌ [getBnovoAuthToken]", { error });
+    throw new Error(error);
+  }
+
+  try {
+    logger?.info("🔑 [getBnovoAuthToken] Получение Bearer token");
+    
+    const response = await axios.post(
+      `${baseUrl}/auth`,
+      {
+        id: accountId,
+        password: apiKey,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      }
+    );
+
+    const token = response.data?.data?.access_token;
+    
+    if (!token) {
+      throw new Error("Access token not found in response");
+    }
+
+    logger?.info("✅ [getBnovoAuthToken] Bearer token получен");
+    return token;
+  } catch (error: any) {
+    logger?.error("❌ [getBnovoAuthToken] Ошибка получения токена", {
+      error: error.message,
+    });
+    throw error;
+  }
+}
+
+/**
  * Tool: Get bookings created between dates
  */
 export const getBnovoBookingsCreatedBetween = createTool({
@@ -60,30 +107,37 @@ export const getBnovoBookingsCreatedBetween = createTool({
     });
 
     const baseUrl = process.env.BNOVO_API_BASE_URL;
-    const apiKey = process.env.BNOVO_API_KEY;
     const hotelId = process.env.BNOVO_HOTEL_ID;
 
-    if (!baseUrl || !apiKey || !hotelId) {
-      const error = "Bnovo API credentials not configured (BNOVO_API_BASE_URL, BNOVO_API_KEY, BNOVO_HOTEL_ID)";
+    if (!baseUrl || !hotelId) {
+      const error = "Bnovo API credentials not configured (BNOVO_API_BASE_URL, BNOVO_HOTEL_ID)";
       logger?.error("❌ [getBnovoBookingsCreatedBetween]", { error });
       throw new Error(error);
     }
 
     try {
+      const token = await getBnovoAuthToken(logger);
+
+      const dateFrom = context.fromIso.split('T')[0];
+      const dateTo = context.toIso.split('T')[0];
 
       const response = await axios.get(`${baseUrl}/bookings`, {
         headers: {
-          "X-Api-Key": apiKey,
+          "Authorization": `Bearer ${token}`,
         },
         params: {
           hotel_id: hotelId,
+          date_from: dateFrom,
+          date_to: dateTo,
           created_from: context.fromIso,
           created_to: context.toIso,
+          offset: 0,
+          limit: 20,
         },
-        timeout: 10000,
+        timeout: 15000,
       });
 
-      const rawBookings = response.data?.bookings || response.data || [];
+      const rawBookings = response.data?.data?.bookings || [];
       const bookings = Array.isArray(rawBookings)
         ? rawBookings.map((raw: any) => mapBookingFromApi(raw))
         : [];
@@ -128,29 +182,39 @@ export const getBnovoBookingsByArrivalDate = createTool({
     });
 
     const baseUrl = process.env.BNOVO_API_BASE_URL;
-    const apiKey = process.env.BNOVO_API_KEY;
     const hotelId = process.env.BNOVO_HOTEL_ID;
 
-    if (!baseUrl || !apiKey || !hotelId) {
-      const error = "Bnovo API credentials not configured (BNOVO_API_BASE_URL, BNOVO_API_KEY, BNOVO_HOTEL_ID)";
+    if (!baseUrl || !hotelId) {
+      const error = "Bnovo API credentials not configured (BNOVO_API_BASE_URL, BNOVO_HOTEL_ID)";
       logger?.error("❌ [getBnovoBookingsByArrivalDate]", { error });
       throw new Error(error);
     }
 
     try {
+      const token = await getBnovoAuthToken(logger);
+
+      const arrivalDate = new Date(context.arrivalDate);
+      const nextDay = new Date(arrivalDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      
+      const dateTo = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, "0")}-${String(nextDay.getDate()).padStart(2, "0")}`;
 
       const response = await axios.get(`${baseUrl}/bookings`, {
         headers: {
-          "X-Api-Key": apiKey,
+          "Authorization": `Bearer ${token}`,
         },
         params: {
           hotel_id: hotelId,
-          arrival_date: context.arrivalDate,
+          date_from: context.arrivalDate,
+          date_to: dateTo,
+          arrival: context.arrivalDate,
+          offset: 0,
+          limit: 20,
         },
-        timeout: 10000,
+        timeout: 15000,
       });
 
-      const rawBookings = response.data?.bookings || response.data || [];
+      const rawBookings = response.data?.data?.bookings || [];
       const bookings = Array.isArray(rawBookings)
         ? rawBookings.map((raw: any) => mapBookingFromApi(raw))
         : [];
@@ -173,41 +237,34 @@ export const getBnovoBookingsByArrivalDate = createTool({
 });
 
 /**
- * Helper function to map Bnovo API response to our schema
+ * Helper function to map booking from API format to our schema
  */
 function mapBookingFromApi(raw: any): z.infer<typeof BnovoBookingSchema> {
-  const guest = raw.guest || {};
-  const room = raw.room || {};
-
-  const services = Array.isArray(raw.services || raw.service_items)
-    ? (raw.services || raw.service_items).map((service: any) => ({
-        id: String(service.id ?? service.service_id ?? ""),
-        code: service.code,
-        title: service.title || service.name || "Услуга",
-        price: service.price ?? service.amount,
-        quantity: service.quantity ?? 1,
-        comment: service.comment,
-      }))
-    : undefined;
-
   return {
-    id: String(raw.id ?? raw.booking_id ?? ""),
+    id: String(raw.id || raw.booking_id || ""),
     createdAt: raw.created_at || raw.createdAt || "",
-    arrivalDate: raw.arrival_date || raw.arrivalDate || "",
-    departureDate: raw.departure_date || raw.departureDate || "",
-    guestName: raw.guest_name || guest.name || "",
-    phone: raw.phone || guest.phone,
-    roomId: String(raw.room_id ?? room.id ?? ""),
-    roomTitle: raw.room_title || room.title || "Номер",
-    adults: Number(raw.adults ?? 0),
-    children: Number(raw.children ?? 0),
-    totalAmount: Number(raw.total_amount ?? raw.total ?? 0),
-    prepaymentAmount: Number(raw.prepayment_amount ?? raw.prepayment ?? 0),
+    arrivalDate: raw.arrival || raw.arrival_date || raw.arrivalDate || "",
+    departureDate: raw.departure || raw.departure_date || raw.departureDate || "",
+    guestName: raw.guest?.name || raw.guest_name || raw.guestName || "",
+    phone: raw.guest?.phone || raw.phone || raw.guest_phone || undefined,
+    roomId: String(raw.room?.id || raw.room_id || raw.roomId || ""),
+    roomTitle: raw.room?.title || raw.room_name || raw.roomTitle || "",
+    adults: Number(raw.adults || raw.adults_count || 0),
+    children: Number(raw.children || raw.children_count || 0),
+    totalAmount: Number(raw.amount || raw.total_amount || raw.totalAmount || 0),
+    prepaymentAmount: Number(raw.prepayment || raw.prepayment_amount || raw.prepaymentAmount || 0),
     currency: raw.currency || "BYN",
-    status: raw.status || raw.booking_status || "",
-    arrivalTimeFrom: raw.arrival_time_from || raw.arrivalTimeFrom,
-    arrivalTimeTo: raw.arrival_time_to || raw.arrivalTimeTo,
-    comment: raw.comment || raw.notes,
-    services,
+    status: raw.status || "",
+    arrivalTimeFrom: raw.arrival_time?.from || raw.arrival_time_from || undefined,
+    arrivalTimeTo: raw.arrival_time?.to || raw.arrival_time_to || undefined,
+    comment: raw.comment || raw.notes || undefined,
+    services: raw.services?.map((s: any) => ({
+      id: String(s.id || ""),
+      code: s.code || undefined,
+      title: s.title || s.name || "",
+      price: s.price ? Number(s.price) : undefined,
+      quantity: s.quantity ? Number(s.quantity) : undefined,
+      comment: s.comment || undefined,
+    })) || undefined,
   };
 }
